@@ -1,0 +1,306 @@
+<html>
+
+<head>
+    <title>国土地理院 最適化ベクトル</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src='https://unpkg.com/maplibre-gl@3.1.0/dist/maplibre-gl.js'></script>
+    <link href='https://unpkg.com/maplibre-gl@3.1.0/dist/maplibre-gl.css' rel='stylesheet' />
+    <script src="https://unpkg.com/pmtiles@2.10.0/dist/index.js"></script>
+    <link href="maplibre-gl-compare.css" rel='stylesheet' />
+    <script src="maplibre-gl-compare.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <style>
+        body {
+            overflow: hidden;
+        }
+
+        body * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .map-overlay {
+            font: bold 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+            position: absolute;
+            width: 220px;
+            bottom: 20px;
+            left: 0;
+            padding: 10px;
+        }
+
+        .map-overlay .map-overlay-inner {
+            background-color: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .map-overlay label {
+            display: block;
+            margin: 0 0 0px;
+            font-size: 12px;
+            top: 100px;
+            left: 10px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .map-overlay input {
+            background-color: transparent;
+            display: inline-block;
+            width: 100%;
+            position: relative;
+            margin: 0;
+            cursor: ew-resize;
+        }
+
+        #buttons {
+            position: absolute;
+            bottom: 50px;
+            left: 10px;
+            z-index: 1;
+        }
+
+        #buttons>button {
+            display: inline-block;
+            position: relative;
+            justify-content: center;
+            margin: 3px;
+            width: 80px;
+            height: 45px;
+            padding: 5px;
+            border: none;
+            border-radius: 3px;
+            z-index: 1;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .corner-text {
+            position: fixed;
+            top: 0;
+            padding: 10px;
+            font-size: 14px;
+            z-index: 1;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        #left-corner {
+            left: 0;
+        }
+
+        #right-corner {
+            right: 0;
+        }
+    </style>
+    <div id="comparison-container">
+        <div id="left-corner" class="corner-text">最適化ﾍﾞｸﾄﾙﾀｲﾙ(pbf)</div>
+        <div id="right-corner" class="corner-text">最適化ﾍﾞｸﾄﾙﾀｲﾙ(pmtiles)</div>
+        <div id="before" class="map"></div>
+        <div id="after" class="map"></div>
+    </div>
+    <div id="buttons">
+        <button type="button" class="btnctrl" id="b_bldg">3D建物</button>
+    </div>
+    <script type="text/javascript">
+        // ページが読み込まれたら実行
+        document.addEventListener("DOMContentLoaded", function () {
+            const button = document.getElementById('b_bldg');
+
+            // 初期状態でのボタンの色を設定
+            if (isLayerVisible) {
+                button.style.backgroundColor = "rgb(50, 153, 255)";  // ONのとき
+                button.style.color = "white";
+            } else {
+                button.style.backgroundColor = "white";  // OFFのとき
+                button.style.color = "black";
+            }
+        });
+
+        let protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol("pmtiles", protocol.tile);
+
+        // PLATEAU 2020_lod1_Building
+        let PM_PLATEAU_lod1_Building_URL = "https://xs489works.xsrv.jp/pmtiles-data/plateau/PLATEAU_2020_LOD1_Z14.pmtiles";
+        const p = new pmtiles.PMTiles(PM_PLATEAU_lod1_Building_URL)
+        protocol.add(p);
+
+        // マップを初期化
+        const beforeMap = new maplibregl.Map({
+            container: 'before',
+            style: './std.json',
+            hash: true,
+            zoom: 14,
+            center: [139.7645499, 35.6812362],
+            pitch: 0,
+            bearing: 0,
+            attributionControl: false,
+        });
+
+        // スケール表示
+        beforeMap.addControl(new maplibregl.ScaleControl({
+            maxWidth: 200,
+            unit: 'metric'
+        }));
+
+        // Attributionを折りたたみ表示
+        beforeMap.addControl(new maplibregl.AttributionControl({
+            compact: true
+        }));
+
+        beforeMap.on('load', () => {
+            // PLATEAU建築物ソース
+            beforeMap.addSource("pmtiles-lod1-Building", {
+                type: "vector",
+                url: "pmtiles://" + PM_PLATEAU_lod1_Building_URL,
+                attribution: '<a href="https://www.geospatial.jp/ckan/dataset/plateau">3D都市モデル「Project PLATEAU」 建築物（国土交通省）を加工して作成</a>'
+            });
+
+            // PLATEAU建築物レイヤ
+            beforeMap.addLayer({
+                'id': 'lod1-Building',
+                'source': 'pmtiles-lod1-Building',
+                'source-layer': 'PLATEAU_2020_LOD1fgb',
+                "minzoom": 14,
+                "maxzoom": 18,
+                'layout': {
+                    'visibility': 'visible',
+                },
+                'type': 'fill-extrusion',
+                'paint': {
+                    "fill-extrusion-color": "#aaa",
+                    "fill-extrusion-opacity": 0.5,
+                    "fill-extrusion-height": ["get", "bldg_measuredHeight"]
+                }
+            });
+        });
+
+        // マップを初期化
+        const afterMap = new maplibregl.Map({
+            container: 'after',
+            // style: 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json',
+            style: {
+                version: 8,
+                sources: {},
+                layers: [],
+            },
+            hash: true,
+            zoom: 14,
+            center: [139.7645499, 35.6812362],
+            pitch: 0,
+            bearing: 0,
+            attributionControl: false,
+        });
+
+        // Attributionを折りたたみ表示
+        afterMap.addControl(new maplibregl.AttributionControl({
+            compact: true,
+            customAttribution: '（<a href="https://twitter.com/shi__works" target="_blank">Twitter</a> | <a href="https://github.com/shi-works/gsi-optimal-bvmap-on-maplibre-gl-js" target="_blank">Github</a>） '
+        }));
+
+        // 現在位置表示
+        afterMap.addControl(new maplibregl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: false
+            },
+            fitBoundsOptions: { maxZoom: 18 },
+            trackUserLocation: true,
+            showUserLocation: true
+        }), 'bottom-right');
+
+        // フルスクリーンモードのオンオフ
+        afterMap.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
+
+        // ズーム・回転
+        afterMap.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+
+        afterMap.on('load', () => {
+            // PLATEAU建築物ソース
+            afterMap.addSource("pmtiles-lod1-Building", {
+                type: "vector",
+                url: "pmtiles://" + PM_PLATEAU_lod1_Building_URL,
+                attribution: '<a href="https://www.geospatial.jp/ckan/dataset/plateau">3D都市モデル「Project PLATEAU」 建築物（国土交通省）を加工して作成</a>'
+            });
+
+            // PLATEAU建築物レイヤ
+            afterMap.addLayer({
+                'id': 'lod1-Building',
+                'source': 'pmtiles-lod1-Building',
+                'source-layer': 'PLATEAU_2020_LOD1fgb',
+                "minzoom": 14,
+                "maxzoom": 18,
+                'layout': {
+                    'visibility': 'visible',
+                },
+                'type': 'fill-extrusion',
+                'paint': {
+                    "fill-extrusion-color": "#aaa",
+                    "fill-extrusion-opacity": 0.5,
+                    "fill-extrusion-height": ["get", "bldg_measuredHeight"]
+                }
+            });
+        });
+
+        var container = "#comparison-container";
+        var map = new maplibregl.Compare(beforeMap, afterMap, container, {
+        });
+
+        // レイヤーの表示状態を保存する変数
+        let isLayerVisible = true;
+
+        // 1つのボタンでbeforeMapとafterMapのレイヤー表示を切り替える
+        document.getElementById('b_bldg').addEventListener('click', function () {
+            const visibility = isLayerVisible ? 'none' : 'visible';
+            const button = document.getElementById('b_bldg');
+
+            beforeMap.setLayoutProperty('lod1-Building', 'visibility', visibility);
+            afterMap.setLayoutProperty('lod1-Building', 'visibility', visibility);
+
+            // 表示状態をトグル
+            isLayerVisible = !isLayerVisible;
+
+            // ボタンの色を変更
+            if (isLayerVisible) {
+                button.style.backgroundColor = "rgb(50, 153, 255)";  // ONのときは緑色
+                button.style.color = "white";
+            } else {
+                button.style.backgroundColor = "white";  // OFFのときは赤色
+                button.style.color = "black";
+            }
+        });
+
+
+        map.showTileBoundaries = ture;
+
+    </script>
+</body>
+
+</html>
