@@ -131,27 +131,29 @@
         <button type="button" class="btnctrl" id="b_bldg">3D建物</button>
     </div>
     <script type="text/javascript">
+        // レイヤーの表示状態を保存する変数
+        let isLayerVisible = false;
+
         // ページが読み込まれたら実行
         document.addEventListener("DOMContentLoaded", function () {
             const button = document.getElementById('b_bldg');
-
-            // 初期状態でのボタンの色を設定
-            if (isLayerVisible) {
-                button.style.backgroundColor = "rgb(50, 153, 255)";  // ONのとき
-                button.style.color = "white";
-            } else {
-                button.style.backgroundColor = "white";  // OFFのとき
-                button.style.color = "black";
-            }
+            updateButtonStyle(button, isLayerVisible);  // 初期状態のスタイルを適用
         });
 
+        // ボタンのスタイルを更新する関数
+        function updateButtonStyle(button, isVisible) {
+            if (isVisible) {
+                button.style.backgroundColor = "rgb(50, 153, 255)";  // ONのときは青色
+                button.style.color = "white";
+            } else {
+                button.style.backgroundColor = "white";  // OFFのときは白色
+                button.style.color = "black";
+            }
+        }
+
+        // protocolを設定
         let protocol = new pmtiles.Protocol();
         maplibregl.addProtocol("pmtiles", protocol.tile);
-
-        // PLATEAU 2020_lod1_Building
-        let PM_PLATEAU_lod1_Building_URL = "https://xs489works.xsrv.jp/pmtiles-data/plateau/PLATEAU_2020_LOD1_Z14.pmtiles";
-        const p = new pmtiles.PMTiles(PM_PLATEAU_lod1_Building_URL)
-        protocol.add(p);
 
         // マップを初期化
         const beforeMap = new maplibregl.Map({
@@ -180,7 +182,7 @@
             // PLATEAU建築物ソース
             beforeMap.addSource("pmtiles-lod1-Building", {
                 type: "vector",
-                url: "pmtiles://" + PM_PLATEAU_lod1_Building_URL,
+                url: "pmtiles://" + "https://xs489works.xsrv.jp/pmtiles-data/plateau/PLATEAU_2020_LOD1_Z14.pmtiles",
                 attribution: '<a href="https://www.geospatial.jp/ckan/dataset/plateau">3D都市モデル「Project PLATEAU」 建築物（国土交通省）を加工して作成</a>'
             });
 
@@ -192,7 +194,7 @@
                 "minzoom": 14,
                 "maxzoom": 18,
                 'layout': {
-                    'visibility': 'visible',
+                    'visibility': 'none',
                 },
                 'type': 'fill-extrusion',
                 'paint': {
@@ -207,11 +209,7 @@
         const afterMap = new maplibregl.Map({
             container: 'after',
             // style: 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json',
-            style: {
-                version: 8,
-                sources: {},
-                layers: [],
-            },
+            style: './std_pmtiles.json',
             hash: true,
             zoom: 14,
             center: [139.7645499, 35.6812362],
@@ -246,7 +244,7 @@
             // PLATEAU建築物ソース
             afterMap.addSource("pmtiles-lod1-Building", {
                 type: "vector",
-                url: "pmtiles://" + PM_PLATEAU_lod1_Building_URL,
+                url: "pmtiles://" + "https://xs489works.xsrv.jp/pmtiles-data/plateau/PLATEAU_2020_LOD1_Z14.pmtiles",
                 attribution: '<a href="https://www.geospatial.jp/ckan/dataset/plateau">3D都市モデル「Project PLATEAU」 建築物（国土交通省）を加工して作成</a>'
             });
 
@@ -258,7 +256,7 @@
                 "minzoom": 14,
                 "maxzoom": 18,
                 'layout': {
-                    'visibility': 'visible',
+                    'visibility': 'none',
                 },
                 'type': 'fill-extrusion',
                 'paint': {
@@ -273,9 +271,6 @@
         var map = new maplibregl.Compare(beforeMap, afterMap, container, {
         });
 
-        // レイヤーの表示状態を保存する変数
-        let isLayerVisible = true;
-
         // 1つのボタンでbeforeMapとafterMapのレイヤー表示を切り替える
         document.getElementById('b_bldg').addEventListener('click', function () {
             const visibility = isLayerVisible ? 'none' : 'visible';
@@ -288,15 +283,8 @@
             isLayerVisible = !isLayerVisible;
 
             // ボタンの色を変更
-            if (isLayerVisible) {
-                button.style.backgroundColor = "rgb(50, 153, 255)";  // ONのときは緑色
-                button.style.color = "white";
-            } else {
-                button.style.backgroundColor = "white";  // OFFのときは赤色
-                button.style.color = "black";
-            }
+            updateButtonStyle(button, isLayerVisible);
         });
-
 
         map.showTileBoundaries = ture;
 
